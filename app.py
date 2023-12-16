@@ -4,7 +4,7 @@ load_dotenv()
 import os
 import pickle
 import streamlit as st
-from scan_pdf_parser import get_text_from_scanned_pdf
+from scanned_pdf_parser import get_text_from_scanned_pdf
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms import GooglePalm
 from langchain.prompts import PromptTemplate
@@ -16,7 +16,8 @@ from langchain.docstore.document import Document
 
 llm = GooglePalm(temperature=0.9)
 
-st.title("Query PDF Tool")
+st.title("PDF Query Tool")
+st.write("Upload your PDF and ask question from it")
 
 uploaded_file = st.file_uploader("Choose a PDF file")
 main_placeholder = st.empty()
@@ -24,8 +25,12 @@ second_placeholder = st.empty()
 
 
 if uploaded_file:
-    if not os.path.exists(uploaded_file.name):
-        main_placeholder.text("Data Loading...Started...⌛⌛⌛")
+    filename = uploaded_file.name
+    if not filename.endswith(('.pdf', '.PDF')):
+        main_placeholder.warning("Choose PDF Document !!!")
+        exit()
+    elif not os.path.exists(uploaded_file.name):
+        main_placeholder.text("Data Loading Started...⌛⌛⌛")
         with open(f'{uploaded_file.name}', 'wb') as f:
             f.write(uploaded_file.getbuffer())
 
@@ -40,7 +45,7 @@ if uploaded_file:
             main_placeholder.text("It looks like Scanned PDF, No worries converting it...⌛⌛⌛")
             raw_text = get_text_from_scanned_pdf(uploaded_file.name)
 
-        main_placeholder.text("Text Splitter...Started...✅✅✅")
+        main_placeholder.text("Splitting text into smaller chunks...⌛⌛⌛")
         text_splitter = RecursiveCharacterTextSplitter(
             separators=['\n\n', '\n', '.', ','],
             chunk_size=2000
@@ -50,14 +55,14 @@ if uploaded_file:
         docs = [Document(page_content=t) for t in texts]
 
         embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-base")
-        main_placeholder.text("Embedding Vector Started Building...✅✅✅")
+        main_placeholder.text("Storing data into Vector Database...⌛⌛⌛")
         vectorstore = FAISS.from_documents(docs, embeddings)
 
         # Save the FAISS index to a pickle file
         with open(f'vector_store_{uploaded_file.name}.pkl', "wb") as f:
             pickle.dump(vectorstore, f)
 
-    main_placeholder.text("Data Loading...Completed...✅✅✅")
+    main_placeholder.text("Data Loading Completed...✅✅✅")
 
 
 query = second_placeholder.text_input("Question:")
